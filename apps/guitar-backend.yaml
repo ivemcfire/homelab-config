@@ -1,0 +1,149 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "7"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"guitar-backend"},"name":"guitar-backend","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"guitar-backend"}},"template":{"metadata":{"annotations":{"prometheus.io/path":"/metrics","prometheus.io/port":"2021","prometheus.io/scrape":"true"},"labels":{"app":"guitar-backend"}},"spec":{"containers":[{"env":[{"name":"LOG_FILE","value":"/var/log/guitar-backend/app.log"},{"name":"LOG_FORMAT","value":"json"}],"image":"guitar-backend:latest","imagePullPolicy":"Never","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/health","port":8000},"initialDelaySeconds":30,"periodSeconds":15},"name":"guitar-backend","ports":[{"containerPort":8000,"name":"http"}],"resources":{"limits":{"cpu":"1000m","memory":"1536Mi"},"requests":{"cpu":"200m","memory":"256Mi"}},"volumeMounts":[{"mountPath":"/var/log/guitar-backend","name":"shared-logs"}]},{"args":["/fluent-bit/bin/fluent-bit","-c","/fluent-bit/etc/fluent-bit.conf"],"env":[{"name":"NODE_NAME","valueFrom":{"fieldRef":{"fieldPath":"spec.nodeName"}}}],"image":"fluent/fluent-bit:3.0","imagePullPolicy":"IfNotPresent","livenessProbe":{"httpGet":{"path":"/api/v1/health","port":2020},"initialDelaySeconds":10,"periodSeconds":15},"name":"fluent-bit-sidecar","ports":[{"containerPort":2020,"name":"fb-http"},{"containerPort":2021,"name":"fb-metrics"}],"resources":{"limits":{"cpu":"100m","memory":"64Mi"},"requests":{"cpu":"50m","memory":"32Mi"}},"volumeMounts":[{"mountPath":"/var/log/guitar-backend","name":"shared-logs"},{"mountPath":"/fluent-bit/etc","name":"fluent-bit-config"}]}],"nodeSelector":{"kubernetes.io/hostname":"k3master"},"volumes":[{"emptyDir":{},"name":"shared-logs"},{"configMap":{"name":"fluent-bit-sidecar-config"},"name":"fluent-bit-config"}]}}}}
+  creationTimestamp: "2026-02-15T19:24:23Z"
+  generation: 7
+  labels:
+    app: guitar-backend
+  name: guitar-backend
+  namespace: default
+  resourceVersion: "753794"
+  uid: 599da249-fdba-4f25-81ba-d01db3b3f8b4
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: guitar-backend
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-02-27T20:14:00Z"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "2021"
+        prometheus.io/scrape: "true"
+      labels:
+        app: guitar-backend
+    spec:
+      containers:
+      - env:
+        - name: LOG_FILE
+          value: /var/log/guitar-backend/app.log
+        - name: LOG_FORMAT
+          value: json
+        image: guitar-backend:latest
+        imagePullPolicy: Never
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: guitar-backend
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1536Mi
+          requests:
+            cpu: 200m
+            memory: 256Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/log/guitar-backend
+          name: shared-logs
+      - args:
+        - /fluent-bit/bin/fluent-bit
+        - -c
+        - /fluent-bit/etc/fluent-bit.conf
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: fluent/fluent-bit:3.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/v1/health
+            port: 2020
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: fluent-bit-sidecar
+        ports:
+        - containerPort: 2020
+          name: fb-http
+          protocol: TCP
+        - containerPort: 2021
+          name: fb-metrics
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 50m
+            memory: 32Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/log/guitar-backend
+          name: shared-logs
+        - mountPath: /fluent-bit/etc
+          name: fluent-bit-config
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/hostname: k3master
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: shared-logs
+      - configMap:
+          defaultMode: 420
+          name: fluent-bit-sidecar-config
+        name: fluent-bit-config
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2026-02-27T19:07:40Z"
+    lastUpdateTime: "2026-02-27T19:07:40Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2026-02-15T19:24:23Z"
+    lastUpdateTime: "2026-02-27T20:14:01Z"
+    message: ReplicaSet "guitar-backend-6596c58857" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 7
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

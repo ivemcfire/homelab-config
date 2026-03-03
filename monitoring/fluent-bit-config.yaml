@@ -1,0 +1,64 @@
+apiVersion: v1
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         5
+        Daemon        Off
+        Log_Level     info
+        HTTP_Server   On
+        HTTP_Listen   0.0.0.0
+        HTTP_Port     2020
+        Parsers_File  parsers.conf
+
+    [INPUT]
+        Name              tail
+        Path              /var/log/guitar-backend/app.log
+        Parser            json
+        Tag               guitar.backend
+        Refresh_Interval  10
+        DB                /var/log/guitar-backend/flb_pos.db
+
+    [FILTER]
+        Name    record_modifier
+        Match   guitar.*
+        Record  cluster    homelab-k3s
+        Record  node       ${NODE_NAME}
+        Record  service    guitar-backend
+
+    [OUTPUT]
+        Name            loki
+        Match           guitar.*
+        Host            loki.default.svc.cluster.local
+        Port            3100
+        Labels          job=guitar-backend, env=homelab, node=${NODE_NAME}
+        Label_Keys      $level,$service
+
+    [OUTPUT]
+        Name   prometheus_exporter
+        Match  guitar.*
+        Host   0.0.0.0
+        Port   2021
+
+    [OUTPUT]
+        Name  stdout
+        Match guitar.*
+  parsers.conf: |
+    [PARSER]
+        Name        json
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"fluent-bit.conf":"[SERVICE]\n    Flush         5\n    Daemon        Off\n    Log_Level     info\n    HTTP_Server   On\n    HTTP_Listen   0.0.0.0\n    HTTP_Port     2020\n    Parsers_File  parsers.conf\n\n[INPUT]\n    Name              tail\n    Path              /var/log/guitar-backend/app.log\n    Parser            json\n    Tag               guitar.backend\n    Refresh_Interval  10\n    DB                /var/log/guitar-backend/flb_pos.db\n\n[FILTER]\n    Name    record_modifier\n    Match   guitar.*\n    Record  cluster    homelab-k3s\n    Record  node       ${NODE_NAME}\n    Record  service    guitar-backend\n\n[OUTPUT]\n    Name            loki\n    Match           guitar.*\n    Host            loki.default.svc.cluster.local\n    Port            3100\n    Labels          job=guitar-backend, env=homelab, node=${NODE_NAME}\n    Label_Keys      $level,$service\n\n[OUTPUT]\n    Name   prometheus_exporter\n    Match  guitar.*\n    Host   0.0.0.0\n    Port   2021\n\n[OUTPUT]\n    Name  stdout\n    Match guitar.*\n","parsers.conf":"[PARSER]\n    Name        json\n    Format      json\n    Time_Key    time\n    Time_Format %Y-%m-%dT%H:%M:%S.%L\n    Time_Keep   On\n"},"kind":"ConfigMap","metadata":{"annotations":{},"labels":{"app":"guitar-backend","component":"sidecar-logging"},"name":"fluent-bit-sidecar-config","namespace":"default"}}
+  creationTimestamp: "2026-02-24T11:55:09Z"
+  labels:
+    app: guitar-backend
+    component: sidecar-logging
+  name: fluent-bit-sidecar-config
+  namespace: default
+  resourceVersion: "566684"
+  uid: 1f16928e-c462-414a-b570-b6cb6a78f8f8

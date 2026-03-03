@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: one6t
+      containers:
+      - name: gitea
+        image: gitea/gitea:latest
+        ports:
+        - containerPort: 3000
+        - containerPort: 22
+        volumeMounts:
+        - name: gitea-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+      volumes:
+      - name: gitea-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.100.206"
+spec:
+  type: LoadBalancer
+  selector:
+    app: gitea
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+  - name: ssh
+    port: 22
+    targetPort: 22
