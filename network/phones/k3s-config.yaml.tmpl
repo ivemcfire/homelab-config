@@ -1,0 +1,7 @@
+# /etc/rancher/k3s/config.yaml on each phone — replace placeholders per host.
+# usb0 is the gadget interface name on the phone side (the laptop sees usb-one*).
+
+server: "https://10.0.1.1:6443"
+node-ip: "<NODE_IP>"          # one6t -> 10.0.1.2 | one62 -> 10.0.2.2 | one61 -> 10.0.3.2
+node-name: "<NODE_NAME>"      # one6t | one62 | one61
+flannel-iface: "usb0"

@@ -1,0 +1,17 @@
+#!/usr/sbin/nft -f
+# /etc/nftables.nft on every phone.
+#
+# postmarketOS ships with a default ruleset whose forward chain drops everything
+# that does not match usb*/wlan*. Pod interfaces (cni0, flannel.1, vethXXX) match
+# none of these patterns and are silently dropped — invisible from `iptables -L`.
+#
+# The fix is to flush the ruleset and disable the service so a reboot does not
+# bring it back:
+#
+#   doas rc-update del nftables 2>/dev/null
+#
+# Phones live on isolated /30 USB links to the laptop, so removing the host
+# firewall is acceptable here. Do not copy this layout onto a phone with a
+# routable interface.
+
+flush ruleset

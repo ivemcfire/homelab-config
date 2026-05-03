@@ -1,0 +1,17 @@
+# /etc/systemd/system/k3s-nat.service
+# MASQUERADE for the 10.0.0.0/8 phone subnets out of wan0, applied before k3s starts.
+# Also flushes nftables — Ubuntu firewalld can resurrect rules across reboots.
+
+[Unit]
+Description=NAT for k3s phone nodes
+After=network-online.target
+Before=k3s.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft flush ruleset
+ExecStart=/usr/sbin/iptables -t nat -I POSTROUTING 1 -s 10.0.0.0/8 -o wan0 -j MASQUERADE
+
+[Install]
+WantedBy=multi-user.target

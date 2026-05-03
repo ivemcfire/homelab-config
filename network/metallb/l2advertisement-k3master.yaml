@@ -1,0 +1,16 @@
+# Pin L2 advertisement to k3master only.
+# Without nodeSelectors, MetalLB's memberlist election can hand a VIP to a phone
+# that has no LAN interface — the speaker "wins" but cannot answer ARP.
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: homelab-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - homelab-pool
+  interfaces:
+    - wan0
+  nodeSelectors:
+    - matchLabels:
+        kubernetes.io/hostname: k3master

@@ -1,0 +1,21 @@
+# /etc/rancher/k3s/config.yaml on k3master
+# Initial bring-up used flannel-iface: "usb-one6t" with node-ip 10.0.1.1 to anchor
+# the cluster on the USB substrate. After a later restructure the control-plane
+# advertises on wan0; both work — the relevant point is that ServiceLB is disabled
+# so MetalLB owns LoadBalancer assignment, and tls-san covers every node-facing IP.
+
+node-ip: "192.168.100.52"
+node-name: "k3master"
+flannel-backend: "vxlan"
+flannel-iface: "wan0"
+cluster-cidr: "10.42.0.0/16"
+service-cidr: "10.43.0.0/16"
+disable:
+  - "servicelb"
+write-kubeconfig-mode: "0644"
+tls-san:
+  - "192.168.100.52"
+  - "k3master"
+  - "10.0.1.1"
+  - "10.0.2.1"
+  - "10.0.3.1"

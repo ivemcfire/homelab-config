@@ -1,0 +1,16 @@
+# /etc/udev/rules.d/90-usb-phones.rules
+# Rename USB-tethered phone interfaces by hub port path, not by MAC
+# (the gadget MAC randomises on every phone reboot — see phones/setup-usb-gadget.sh
+# for the host_addr override that complements this rule).
+#
+# Find your USB port paths with:
+#   for iface in $(ls /sys/class/net/ | grep enx); do
+#     udevadm info -q property /sys/class/net/$iface | grep -E 'ID_PATH=|ID_SERIAL'
+#   done
+
+SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-0000:00:14.0-usb-0:5.2:1.0", ENV{ID_SERIAL}=="OnePlus*", NAME="usb-one6t"
+SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-0000:00:14.0-usb-0:5.3:1.0", ENV{ID_SERIAL}=="OnePlus*", NAME="usb-one62"
+SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-0000:00:14.0-usb-0:5.1:1.0", ENV{ID_SERIAL}=="OnePlus*", NAME="usb-one61"
+
+# WAN dongle — match by MAC for stable naming
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="c8:4d:44:35:0b:46", NAME="wan0"

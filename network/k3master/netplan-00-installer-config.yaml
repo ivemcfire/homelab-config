@@ -1,0 +1,30 @@
+# /etc/netplan/00-installer-config.yaml on k3master
+# Four physical links: wan0 (LAN dongle) + three USB /30 point-to-point to phones.
+# Interface names are stable thanks to ../udev-90-usb-phones.rules.
+
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    wan0:
+      match:
+        macaddress: 9c:69:d3:4a:f4:a9
+      set-name: wan0
+      addresses:
+        - 192.168.100.52/24
+      routes:
+        - to: default
+          via: 192.168.100.1
+      nameservers:
+        addresses:
+          - 1.1.1.1
+          - 8.8.8.8
+    usb-one6t:
+      addresses: [10.0.1.1/30]
+      link-local: []
+    usb-one62:
+      addresses: [10.0.2.1/30]
+      link-local: []
+    usb-one61:
+      addresses: [10.0.3.1/30]
+      link-local: []
