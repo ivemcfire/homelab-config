@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: double-take
+  namespace: frigate
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: double-take } }
+  template:
+    metadata:
+      labels: { app: double-take }
+      annotations:
+        # Reloader auto-rollout when ConfigMap changes (existing operator)
+        configmap.reloader.stakater.com/reload: "double-take-config"
+    spec:
+      nodeSelector: { kubernetes.io/hostname: k3frigate }
+      containers:
+        - name: double-take
+          image: skrashevich/double-take:latest
+          ports:
+            - { containerPort: 3000, name: http }
+          env:
+            - { name: TZ, value: Europe/Sofia }
+            - { name: SECURE, value: "false" }
+          volumeMounts:
+            - { name: config, mountPath: /.storage }
+            - { name: cm, mountPath: /.storage/config, readOnly: true }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /api/status, port: 3000 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: config
+          persistentVolumeClaim: { claimName: double-take }
+        - name: cm
+          configMap: { name: double-take-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: double-take
+  namespace: frigate
+spec:
+  selector: { app: double-take }
+  ports: [{ port: 3000, targetPort: http, name: http }]

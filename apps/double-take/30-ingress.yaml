@@ -1,0 +1,13 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: double-take
+  namespace: frigate
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`double-take.lan`)
+      kind: Rule
+      services:
+        - name: double-take
+          port: 3000

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compreface-api
+  namespace: face-recognition
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: compreface-api } }
+  template:
+    metadata: { labels: { app: compreface-api } }
+    spec:
+      nodeSelector: { kubernetes.io/hostname: k3frigate }
+      containers:
+        - name: api
+          image: exadel/compreface-api:1.2.0
+          ports: [{ containerPort: 8080, name: http }]
+          env:
+            - { name: POSTGRES_URL, value: jdbc:postgresql://postgres:5432/frs }
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: POSTGRES_PASSWORD } }
+            - { name: SPRING_PROFILES_ACTIVE, value: dev }
+            - { name: API_JAVA_OPTS, value: "-Xmx256m" }
+            - { name: SAVE_IMAGES_TO_DB, value: "true" }
+            - { name: ML_URL, value: http://compreface-core:3000 }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /api/v1/version, port: 8080 }
+            initialDelaySeconds: 60
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compreface-api
+  namespace: face-recognition
+spec:
+  selector: { app: compreface-api }
+  ports: [{ port: 8080, targetPort: http, name: http }]

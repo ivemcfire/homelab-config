@@ -1,0 +1,13 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: compreface
+  namespace: face-recognition
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`compreface.lan`) || Host(`compreface.k3master`)
+      kind: Rule
+      services:
+        - name: compreface-fe
+          port: 80

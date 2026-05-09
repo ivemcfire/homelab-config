@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compreface-admin
+  namespace: face-recognition
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: compreface-admin } }
+  template:
+    metadata: { labels: { app: compreface-admin } }
+    spec:
+      nodeSelector: { kubernetes.io/hostname: k3frigate }
+      containers:
+        - name: admin
+          image: exadel/compreface-admin:1.2.0
+          ports: [{ containerPort: 8080, name: http }]
+          env:
+            - { name: POSTGRES_URL, value: jdbc:postgresql://postgres:5432/frs }
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: POSTGRES_PASSWORD } }
+            - { name: SPRING_PROFILES_ACTIVE, value: dev }
+            - { name: ENABLE_EMAIL_SERVER, value: "false" }
+            - { name: ADMIN_JAVA_OPTS, value: "-Xmx256m" }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /admin/actuator/health, port: 8080 }
+            initialDelaySeconds: 60
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compreface-admin
+  namespace: face-recognition
+spec:
+  selector: { app: compreface-admin }
+  ports: [{ port: 8080, targetPort: http, name: http }]

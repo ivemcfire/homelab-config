@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: compreface-models-pv
+  labels:
+    app: compreface-models
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-path
+  hostPath:
+    path: /mnt/frigate/compreface/models
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k3frigate]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: compreface-models
+  namespace: face-recognition
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path
+  selector:
+    matchLabels:
+      app: compreface-models

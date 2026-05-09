@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: compreface-backups-pv
+  labels:
+    app: compreface-backups
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-path
+  hostPath:
+    path: /mnt/frigate/compreface/postgres-backups
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k3frigate]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: compreface-backups
+  namespace: face-recognition
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+  selector:
+    matchLabels:
+      app: compreface-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: compreface-postgres-backup
+  namespace: face-recognition
+spec:
+  schedule: "0 3 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector: { kubernetes.io/hostname: k3frigate }
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  OUT=/backups/compreface-${TS}.sql.gz
+                  echo "Dumping to $OUT"
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --clean --if-exists | gzip -9 > "$OUT"
+                  echo "Wrote: $(ls -lh $OUT)"
+                  echo "Pruning backups older than 14 days..."
+                  find /backups -name 'compreface-*.sql.gz' -type f -mtime +14 -delete -print
+                  echo "Current backups:"
+                  ls -lh /backups | tail
+              envFrom:
+                - secretRef: { name: postgres-creds }
+              volumeMounts:
+                - { name: backups, mountPath: /backups }
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { cpu: 200m, memory: 256Mi }
+          volumes:
+            - name: backups
+              persistentVolumeClaim: { claimName: compreface-backups }
