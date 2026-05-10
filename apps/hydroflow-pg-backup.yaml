@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hydroflow-postgres-backup
+  namespace: hydroflow
+spec:
+  schedule: "30 3 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector: { kubernetes.io/hostname: k3frigate }
+          containers:
+            - name: backup
+              image: postgres:15-alpine
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  apk add --no-cache openssh-client >/dev/null 2>&1
+
+                  SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10 -i /ssh/id_ed25519"
+                  DEST_HOST="user@192.168.100.62"
+                  DEST_DIR="/home/user/backups/hydroflow-postgres"
+
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  TMP=/tmp/hydroflow-${TS}.sql.gz
+
+                  echo "[$(date)] pg_dump → $TMP"
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+                    -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                    --no-owner --clean --if-exists \
+                    | gzip -9 > "$TMP"
+                  echo "[$(date)] dump size: $(ls -lh $TMP | awk '{print $5}')"
+
+                  echo "[$(date)] scp → ${DEST_HOST}:${DEST_DIR}/"
+                  scp ${SSH_OPTS} "$TMP" "${DEST_HOST}:${DEST_DIR}/"
+
+                  echo "[$(date)] remote retention: keep 14 days"
+                  ssh ${SSH_OPTS} "${DEST_HOST}" "find ${DEST_DIR} -name 'hydroflow-*.sql.gz' -type f -mtime +14 -delete -print"
+
+                  rm -f "$TMP"
+                  echo "[$(date)] backup complete"
+              envFrom:
+                - secretRef: { name: postgres-secret }
+              volumeMounts:
+                - { name: ssh-key, mountPath: /ssh, readOnly: true }
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { cpu: 300m, memory: 256Mi }
+          volumes:
+            - name: ssh-key
+              secret:
+                secretName: jumphost-ssh-key
+                defaultMode: 0400

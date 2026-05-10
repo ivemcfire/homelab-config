@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: hydroflow-postgres-new-pv
+  labels:
+    app: hydroflow-postgres-new
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-path
+  hostPath:
+    path: /mnt/frigate/hydroflow-postgres
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k3frigate]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-new-pvc
+  namespace: hydroflow
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-path
+  selector:
+    matchLabels:
+      app: hydroflow-postgres-new
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-new
+  namespace: hydroflow
+  labels: { app: postgres, instance: new }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: postgres, instance: new }
+  template:
+    metadata:
+      labels: { app: postgres, instance: new, app.kubernetes.io/part-of: hydroflow }
+    spec:
+      nodeSelector: { kubernetes.io/hostname: k3frigate }
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports: [{ containerPort: 5432, name: postgres }]
+          envFrom:
+            - secretRef: { name: postgres-secret }
+          env:
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data, subPath: pgdata }
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { cpu: 1000m, memory: 1Gi }
+          livenessProbe:
+            exec: { command: [pg_isready, -U, hydroflow_user, -d, hydroflow] }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            exec: { command: [pg_isready, -U, hydroflow_user, -d, hydroflow] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: postgres-new-pvc }
