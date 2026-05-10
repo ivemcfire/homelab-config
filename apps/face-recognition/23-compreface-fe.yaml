@@ -27,5 +27,7 @@ metadata:
   name: compreface-fe
   namespace: face-recognition
 spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.100.212
   selector: { app: compreface-fe }
   ports: [{ port: 80, targetPort: http, name: http }]
