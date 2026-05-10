@@ -1,0 +1,64 @@
+# Helm values for loki release in 'default' ns.
+# Chart: grafana/loki, version 6.53.0 (App: 3.6.5).
+#
+# Apply:  sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+#         helm upgrade loki grafana/loki -n default --version 6.53.0 -f loki-values.yaml
+#
+# Source of truth -- direct kubectl edits to StatefulSets will be reverted on
+# next helm upgrade unless re-codified here.
+
+deploymentMode: SingleBinary
+
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+singleBinary:
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: k3master
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+# Memcached chunks cache trimmed for homelab (default chart sizes 8192Mi for
+# prod scale; we observed 0Mi actual usage). Frees ~9.6Gi on whichever node
+# this pod lands. See cluster-improvements.md row 35.
+chunksCache:
+  allocatedMemory: 256
+
+gateway:
+  enabled: false
+
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  lokiCanary:
+    enabled: false
+  dashboards:
+    enabled: false
+
+test:
+  enabled: false
