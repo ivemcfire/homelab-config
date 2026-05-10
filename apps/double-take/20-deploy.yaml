@@ -45,5 +45,7 @@ metadata:
   name: double-take
   namespace: frigate
 spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.100.213
   selector: { app: double-take }
   ports: [{ port: 3000, targetPort: http, name: http }]
