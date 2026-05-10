@@ -25,12 +25,14 @@ spec:
             - { name: SECURE, value: "false" }
           volumeMounts:
             - { name: config, mountPath: /.storage }
-            - { name: cm, mountPath: /.storage/config, readOnly: true }
+            # Overlay only config.yml from ConfigMap so /.storage/config dir
+            # stays writable (DT writes secrets.yml there at startup).
+            - { name: cm, mountPath: /.storage/config/config.yml, subPath: config.yml, readOnly: true }
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits: { cpu: 500m, memory: 512Mi }
           readinessProbe:
-            httpGet: { path: /api/status, port: 3000 }
+            httpGet: { path: /, port: 3000 }
             initialDelaySeconds: 30
             periodSeconds: 10
       volumes:
