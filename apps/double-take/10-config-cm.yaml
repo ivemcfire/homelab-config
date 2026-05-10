@@ -9,7 +9,7 @@ data:
     # https://github.com/skrashevich/double-take
 
     mqtt:
-      host: mosquitto.hydroflow.svc.cluster.local
+      host: mosquitto.frigate.svc.cluster.local
       port: 1883
       topics:
         frigate: frigate/events
