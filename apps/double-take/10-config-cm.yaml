@@ -32,7 +32,7 @@ data:
       labels:
         - person
       image:
-        height: 720
+        height: 1080
       cameras:
         cam17_reolink:
           snapshot:
@@ -56,7 +56,7 @@ data:
       compreface:
         url: http://compreface-api.face-recognition.svc.cluster.local:8080
         key: REPLACE_AT_DEPLOY_TIME_FROM_CREDENTIALS_MD_AGE
-        det_prob_threshold: 0.7
+        det_prob_threshold: 0.6
         face_plugins: gender,age,mask
         sync: false
         cache: 1000
