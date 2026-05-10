@@ -29,15 +29,16 @@ data:
         delay: 1
       events:
         zones: []
-      labels:
-        - person
+      labels: []
       image:
         height: 1080
       cameras:
         cam17_reolink:
+          labels: [person]
           snapshot:
             attempts: 5
-        cam22:
+        cam21:
+          labels: [person]
           snapshot:
             attempts: 5
 
