@@ -1,0 +1,16 @@
+# chickenflow-postgres-pvc — live, bound to chickenflow-postgres-pv (10Gi, local-path on k3frigate).
+# chickenflow-db-pvc is STALE (cluster-improvements row 33) and intentionally NOT defined here;
+# reroll script also skips it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chickenflow-postgres-pvc
+  namespace: chickenflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+  volumeName: chickenflow-postgres-pv

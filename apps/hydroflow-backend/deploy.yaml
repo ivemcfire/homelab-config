@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydroflow-backend
+  namespace: hydroflow
+  labels:
+    app: hydroflow-backend
+    app.kubernetes.io/part-of: hydroflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydroflow-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: hydroflow-backend
+        app.kubernetes.io/part-of: hydroflow
+    spec:
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: gitea-registry
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: postgres
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: hydroflow-backend
+          image: 192.168.100.206/ivemcfire/hydroflow-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: APP_COLOR
+              value: green
+            - name: MQTT_BROKER
+              value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
+            - name: MQTT_URL
+              value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
+          lifecycle:
+            preStop:
+              exec:
+                command: [sleep, "5"]
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi

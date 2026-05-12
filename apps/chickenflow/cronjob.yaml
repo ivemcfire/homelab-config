@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: chickenflow-postgres-backup
+  namespace: chickenflow
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1800
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: postgres:15-alpine
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - secretRef:
+                    name: chickenflow-postgres-secret
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  apk add --no-cache openssh-client >/dev/null 2>&1
+
+                  SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10 -i /ssh/id_ed25519"
+                  DEST_HOST="user@192.168.100.62"
+                  DEST_DIR="/home/user/backups/chickenflow-postgres"
+
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  TMP=/tmp/chickenflow-${TS}.sql.gz
+
+                  echo "[$(date)] pg_dump -> $TMP"
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+                    -h chickenflow-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                    --no-owner --clean --if-exists \
+                    | gzip -9 > "$TMP"
+                  echo "[$(date)] dump size: $(ls -lh $TMP | awk '{print $5}')"
+
+                  echo "[$(date)] scp -> ${DEST_HOST}:${DEST_DIR}/"
+                  scp ${SSH_OPTS} "$TMP" "${DEST_HOST}:${DEST_DIR}/"
+
+                  echo "[$(date)] remote retention: keep 14 days"
+                  ssh ${SSH_OPTS} "${DEST_HOST}" "find ${DEST_DIR} -name 'chickenflow-*.sql.gz' -type f -mtime +14 -delete -print"
+
+                  rm -f "$TMP"
+                  echo "[$(date)] backup complete"
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 16Mi
+                limits:
+                  cpu: 300m
+                  memory: 256Mi
+              volumeMounts:
+                - name: ssh-key
+                  mountPath: /ssh
+                  readOnly: true
+          volumes:
+            - name: ssh-key
+              secret:
+                secretName: jumphost-ssh-key
+                defaultMode: 0400

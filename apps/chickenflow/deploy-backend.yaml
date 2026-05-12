@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chickenflow-backend
+  namespace: chickenflow
+  labels:
+    app: chickenflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chickenflow
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: chickenflow
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: chickenflow
+          image: ghcr.io/ivemcfire/chickenflow:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4000
+              name: http
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: chickenflow-db-secret
+                  key: url
+          envFrom:
+            - configMapRef:
+                name: chickenflow-config
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # NOTE: in-cluster mounts /data from PVC chickenflow-db-pvc but that
+          # PVC is flagged STALE in cluster-improvements row 33. We omit the
+          # PVC + volumeMount from IaC; reroll script skips this PVC too.
+          # Captures persist only ephemerally until a fresh PVC strategy is decided.

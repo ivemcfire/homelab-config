@@ -1,0 +1,52 @@
+# Mosquitto storage — re-pinned to k3frigate on hostPath /mnt/frigate/mosquitto.
+#
+# Migration notes (handled by reroll script):
+#   - OLD: PVC mosquitto-pvc bound to pvc-ad5adf72-... (local-path on one6t phone).
+#   - NEW: PV mosquitto-pv (hostPath /mnt/frigate/mosquitto, k3frigate-only nodeAffinity).
+#   - Reroll script rsyncs $BK/mosquitto-from-one6t/ (if present) onto
+#     k3frigate:/mnt/frigate/mosquitto/ post-reroll, preserving retained-msg DB.
+#   - If $BK/mosquitto-from-one6t/ is absent (one6t SSH failed pre-reroll),
+#     broker starts fresh — retained messages lost but topics rebuild as
+#     publishers reconnect.
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mosquitto-pv
+  labels:
+    app: mosquitto
+    app.kubernetes.io/part-of: hydroflow
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual-hostpath
+  hostPath:
+    path: /mnt/frigate/mosquitto
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k3frigate]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mosquitto-pvc
+  namespace: hydroflow
+  labels:
+    app: mosquitto
+    app.kubernetes.io/part-of: hydroflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual-hostpath
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: mosquitto-pv

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hydroflow-backend
+  namespace: hydroflow
+  labels:
+    app: hydroflow-backend
+    app.kubernetes.io/part-of: hydroflow
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 192.168.100.208
+spec:
+  type: LoadBalancer
+  selector:
+    app: hydroflow-backend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP

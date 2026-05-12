@@ -1,0 +1,39 @@
+# smarter-device-manager RBAC (upstream-style).
+#
+# In-cluster live state today: the DaemonSet runs as the *default* SA in its
+# namespace; no dedicated ClusterRole/Binding exists. The device-plugin API is
+# socket-based via hostPath /var/lib/kubelet/device-plugins, so API-server
+# permissions are not strictly required.
+#
+# We still ship a dedicated SA here (and bind it on the DS via a follow-up patch)
+# so the namespace is self-contained and matches upstream Arm-Research layout.
+# The ClusterRole + Binding below are minimal (read-only on nodes/pods) and
+# match the upstream chart — safe to apply, harmless if unused.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: smarter-device-manager
+  namespace: smarter-device-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: smarter-device-manager
+rules:
+  - apiGroups: [""]
+    resources: [nodes, pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: smarter-device-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: smarter-device-manager
+subjects:
+  - kind: ServiceAccount
+    name: smarter-device-manager
+    namespace: smarter-device-manager

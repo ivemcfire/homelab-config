@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto
+  namespace: hydroflow
+  labels:
+    app: mosquitto
+    app.kubernetes.io/part-of: hydroflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+        app.kubernetes.io/part-of: hydroflow
+    spec:
+      # Re-pinned to k3frigate (.56) — phones (one6t) too unreliable.
+      # cluster-improvements row 48: broker mismatch was eating events.
+      # Storage moved to hostPath on /mnt/frigate/mosquitto (see pvc-stub.yaml).
+      nodeSelector:
+        kubernetes.io/hostname: k3frigate
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:2.0.21
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 1883
+              name: mqtt
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 1883
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            tcpSocket:
+              port: 1883
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /mosquitto/config/mosquitto.conf
+              subPath: mosquitto.conf
+              readOnly: true
+            - name: data
+              mountPath: /mosquitto/data
+            - name: log
+              mountPath: /mosquitto/log
+      volumes:
+        - name: config
+          configMap:
+            name: mosquitto-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: mosquitto-pvc
+        - name: log
+          emptyDir: {}

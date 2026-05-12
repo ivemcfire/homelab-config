@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chickenflow-postgres
+  namespace: chickenflow
+  labels:
+    app: chickenflow-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chickenflow-postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: chickenflow-postgres
+    spec:
+      # Pinned to k3frigate per cluster-improvements row 33
+      # (postgres moved off k3master/hydroflow-pg crashloop onto .56).
+      nodeSelector:
+        kubernetes.io/hostname: k3frigate
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+              protocol: TCP
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          envFrom:
+            - secretRef:
+                name: chickenflow-postgres-secret
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, chickenflow_user, -d, chickenflow]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, chickenflow_user, -d, chickenflow]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: chickenflow-postgres-pvc
