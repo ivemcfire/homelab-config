@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: mqtt-inference-worker
   namespace: gpu-inference
+  labels:
+    app: mqtt-inference-worker
 spec:
   replicas: 1
   selector:
@@ -13,15 +15,17 @@ spec:
       labels:
         app: mqtt-inference-worker
     spec:
-      # arm64 = phone-only; image is node-local (imagePullPolicy: Never),
-      # built on the phone(s) and not in any registry.
+      # arm64 = phone-only. Pulls from in-cluster gitea registry via
+      # /etc/rancher/k3s/registries.yaml HTTP mirror on each node.
       nodeSelector:
         kubernetes.io/arch: arm64
       restartPolicy: Always
+      imagePullSecrets:
+        - name: gitea-registry
       containers:
         - name: worker
-          image: mqtt-inference-worker:latest
-          imagePullPolicy: Never
+          image: 192.168.100.206/homelab/mqtt-inference-worker:20260513-0544
+          imagePullPolicy: IfNotPresent
           env:
             - name: MQTT_BROKER
               value: mosquitto.hydroflow.svc.cluster.local

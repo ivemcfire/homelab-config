@@ -42,8 +42,8 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: hydroflow-backend
-          image: 192.168.100.206/ivemcfire/hydroflow-backend:latest
-          imagePullPolicy: Always
+          image: 192.168.100.206/ivemcfire/hydroflow-backend:20260513-0554
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
               name: http
