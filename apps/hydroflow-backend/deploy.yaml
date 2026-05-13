@@ -59,6 +59,25 @@ spec:
               value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
             - name: MQTT_URL
               value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
+            - name: DB_HOST
+              value: postgres.hydroflow.svc.cluster.local
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
           lifecycle:
             preStop:
               exec:
