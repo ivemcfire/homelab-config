@@ -1,7 +1,7 @@
-# Homelab k3s cluster — phones, control planes, build farm
+# Homelab High Availability k3s cluster — phones, control planes, build farm
 
-A six-node k3s cluster built from old laptops, a Surface tablet, and three
-OnePlus phones. Three control planes with embedded etcd, three arm64 phone
+A six-node k3s cluster built from laptops, a Surface tablet, and three
+old OnePlus phones. Three control planes with embedded etcd, three arm64 phone
 agents on USB tether. Mixed-arch, real workloads.
 
 - No Wi-Fi between cluster members.
@@ -9,8 +9,8 @@ agents on USB tether. Mixed-arch, real workloads.
 - No cloud.
 
 Just routed USB links to the phones, gigabit Ethernet between control planes,
-postmarketOS + Ubuntu side by side, and a lot of things that do not behave
-like servers until you force them to.
+postmarketOS + Ubuntu side by side, and a lot of things that do not visually look
+like servers until you make them into fully functional HA kubernetis cluster.
 
 ---
 
