@@ -1,53 +1,85 @@
-# Phones as Kubernetes Nodes (k3s over USB)
+# Homelab k3s cluster — phones, control planes, build farm
 
-A four-node k3s cluster built from a laptop and three old OnePlus phones —
-connected entirely over USB.
+A six-node k3s cluster built from old laptops, a Surface tablet, and three
+OnePlus phones. Three control planes with embedded etcd, three arm64 phone
+agents on USB tether. Mixed-arch, real workloads.
 
-- No Wi-Fi.
-- No switch.
-- No shared L2 network.
+- No Wi-Fi between cluster members.
+- No shared L2 between phones and the LAN.
+- No cloud.
 
-Just point-to-point USB links, postmarketOS, and a lot of things that do not
-behave like servers until you force them to.
+Just routed USB links to the phones, gigabit Ethernet between control planes,
+postmarketOS + Ubuntu side by side, and a lot of things that do not behave
+like servers until you force them to.
 
 ---
 
 ## What This Repo Contains
 
-The implementation layer behind the post
-*[A k3s Cluster Over USB Cables: What postmarketOS and Linux Bridges Hide][post]*,
-plus the workloads that run on top of it.
+The implementation layer behind two posts:
 
-- **`network/`** — the post's companion: udev, netplan, USB gadget scripts,
-  nftables overrides, MetalLB manifests, NAT, DTB battery patch, and a 4×4
-  ping-matrix validation script. Start here.
-- **`apps/`** — application workloads that actually run on the phones
-  (Gitea, guitar-app, open-webui, uptime-kuma).
-- **`monitoring/`** — Fluent Bit configuration shipping logs into the
-  Loki + Prometheus stack.
+1. *[A k3s Cluster Over USB Cables: What postmarketOS and Linux Bridges Hide][post-phones]*
+   — the original phones-as-workers build.
+2. *[What broke during a k3s sqlite → embedded etcd HA migration][post-ha]*
+   — adding two control planes and rebuilding the cluster around them.
+
+Plus the workloads that run on top.
+
+- **`network/`** — post #1 companion: udev, netplan, USB gadget scripts,
+  nftables overrides, MetalLB manifests, NAT, DTB battery patch, ping-matrix
+  validation. Start here if you came from post #1.
+- **`cluster/containerd-mirrors/`** — post #2 companion: the systemd drop-in
+  + `fix-gitea-hosts.sh` that works around the k3s 1.35 hosts.toml synthesis
+  bug. Applied on all 6 nodes.
+- **`apps/`** — current workloads: Gitea (registry + Git, durable PVC),
+  HydroFlow (Express + Postgres + MQTT for greenhouse IoT), ChickenFlow
+  (Angular SSR + Postgres), Frigate companions (Double Take + CompreFace
+  face-recognition), GPU-inference worker (ONNX on Adreno 630 via Rusticl),
+  Loki + uptime-kuma in `apps/monitoring/`, plus buildkit and
+  smarter-device-manager infrastructure.
 
 This is not a one-command setup. It is a collection of working parts that
 make the system stable.
 
-[post]: https://ivemcfire.github.io/posts/k3s-phone-cluster.html
+[post-phones]: https://ivemcfire.github.io/posts/k3s-phone-cluster.html
+[post-ha]: https://ivemcfire.github.io/posts/k3s-ha-migration.html
 
 ---
 
 ## Architecture
 
-- **Control plane:** Lenovo laptop (`k3master`, amd64)
-- **Workers:** 3× OnePlus phones running postmarketOS (`one6t`, `one62`, `one61`, arm64)
+- **Control plane (3-member embedded etcd quorum, all amd64):**
+  - `k3master` — Lenovo laptop, .52
+  - `k3frigate` — i5-6600 mini-PC with GTX 1050Ti, .56 (also GPU node)
+  - `k3sp4` — Surface Pro 4, .53
+- **Workers (arm64, on USB tether):** 3× OnePlus 6 / 6T phones running
+  postmarketOS — `one6t` (10.0.1.2), `one62` (10.0.2.2), `one61` (10.0.3.2)
 - **Networking:**
-  - USB-C cables via a powered hub
-  - Routed `/30` link per phone
-  - No shared L2 between nodes
+  - Gigabit Ethernet between the three control planes (LAN `192.168.100.0/24`)
+  - Routed `/30` USB-tether link from `k3master` to each phone — phones do
+    not reach the LAN; they reach the API server through the local peer IP
+    (`10.0.X.1`) on `--flannel-iface usb0`
   - Flannel VXLAN for the pod overlay
-- **Load balancing:** MetalLB (L2 mode, pinned to control plane)
-- **Outbound:** NAT (`MASQUERADE`) on `k3master` for `10.0.0.0/8`
+- **Load balancing:** MetalLB L2 mode, advertisement pinned to the control
+  planes (phones cannot answer ARP on the LAN)
+- **Registry:** self-hosted Gitea OCI at `192.168.100.206`, on a durable
+  hostPath PVC pinned to `k3frigate`
+- **Build infrastructure:** buildx kubernetes driver provisions buildkitd
+  pods natively on amd64 + arm64 cluster nodes — no qemu emulation
 
 ```
-Phones  <->  USB  <->  Laptop  <->  LAN
-            (routed /30s)  (NAT + LB)
+                  LAN 192.168.100.0/24
+                          |
+        +-------+---------+---------+-------+
+        |       |                   |       |
+     k3master k3frigate          k3sp4   gitea LB
+       .52      .56                .53     .206
+    (CP+etcd) (CP+etcd, GPU)    (CP+etcd)
+        |
+        +---USB tether (routed /30s)---+
+        |          |          |
+       one6t     one61      one62 (agents)
+       10.0.1.2  10.0.3.2   10.0.2.2
 ```
 
 ---
@@ -56,20 +88,43 @@ Phones  <->  USB  <->  Laptop  <->  LAN
 
 ```
 .
-├── network/        — post companion: bring-up, validation, DTB tools (read README inside)
-├── apps/           — application manifests scheduled across the phones
-├── monitoring/     — Fluent Bit log shipping config
-└── README.md       — this file
+├── network/                    — post #1 companion: USB bring-up, validation, DTB tools
+│   ├── k3master/               — netplan, udev, nftables on the control-plane laptop
+│   ├── phones/                 — postmarketOS gadget setup, battery DTB patch
+│   ├── metallb/                — IPAddressPool + L2Advertisement
+│   ├── tools/                  — DTB extract/patch scripts
+│   └── validate/               — 4×4 ping-matrix sanity script
+├── cluster/
+│   └── containerd-mirrors/     — post #2 companion: k3s 1.35 hosts.toml workaround
+│                                  (drop-in + fix-gitea-hosts.sh)
+├── apps/
+│   ├── gitea/                  — Git + container registry, durable PVC on k3frigate
+│   ├── buildkit/               — buildx kubernetes-driver namespace, RBAC, config
+│   ├── hydroflow-backend/      — Express API for greenhouse IoT
+│   ├── hydroflow-mosquitto/    — MQTT broker, repinned to k3frigate
+│   ├── chickenflow/            — Angular SSR + Postgres on k3frigate
+│   ├── double-take/            — face-rec orchestration (consumes Frigate events)
+│   ├── face-recognition/       — CompreFace stack + Postgres
+│   ├── gpu-inference/          — ONNX worker on Adreno 630 via Rusticl (arm64)
+│   ├── smarter-device-manager/ — Adreno GPU device plugin for phones
+│   └── monitoring/
+│       ├── loki/               — log aggregation (helm values)
+│       └── uptime-kuma.yaml    — uptime probe + dashboard
+└── README.md                   — this file
 ```
 
-The deep-dive on the cluster substrate — bring-up order, design decisions,
-what is captured and what is not — lives in [`network/README.md`](network/README.md).
+The substrate deep-dive — USB bring-up order, design decisions, what is
+captured and what is not — lives in [`network/README.md`](network/README.md).
+The HA migration narrative — outage planning, restore mechanics, k3s 1.35
+hosts.toml workaround — is the second blog post above.
 
 ---
 
 ## Key Design Decisions
 
 The non-obvious calls, with the trade-off implicit:
+
+**Substrate / networking (post #1):**
 
 - **USB instead of Wi-Fi** — radios introduce instability; USB is deterministic.
   Phones are physically tethered to the hub in exchange.
@@ -82,15 +137,35 @@ The non-obvious calls, with the trade-off implicit:
   `flannel.1`, `vethXXX`) match neither. None of this is visible from `iptables -L`.
 - **Stable interface names via udev (by USB hub port path)** — gadget MACs
   randomise on every reboot; matching by MAC is fragile.
-- **Pin MAC addresses on the gadget side too** — gives the laptop udev a
-  stable identifier to match against, instead of a moving target.
-- **MetalLB advertisement pinned to `k3master`** — phones have no LAN
-  interface; if the memberlist election hands a VIP to one of them, ARP
+- **MetalLB advertisement pinned to the control planes** — phones have no
+  LAN interface; if the memberlist election hands a VIP to one of them, ARP
   black-holes silently.
 - **Battery charge capped at ~3.8 V via DTB patch** — cells held at 100% on
   permanent AC swell. Cap is configuration, not hardware.
 - **Powered USB hub is mandatory** — a laptop port (~0.5 A) cannot sustain
-  a phone (~1 A) under cluster load. Two of three phones brown out without it.
+  a phone (~1 A) under cluster load.
+
+**HA + workload placement (post #2):**
+
+- **Embedded etcd over external Postgres** for the k3s datastore — fewer
+  moving parts, no extra SPOF, ships with k3s. Trade-off: a node losing its
+  disk means etcd has to be rebuilt from a snapshot.
+- **Surface Pro 4 as CP3** — already in the house, 8 GB RAM is enough for
+  kubelet plus light workloads. Trade-off: lid-switch / sleep / NIC
+  power-save quirks to mask before joining.
+- **Mosquitto re-pinned from a phone to `k3frigate`** during the reroll.
+  The MQTT broker is critical for HydroFlow + ChickenFlow + Frigate events;
+  phones are not reliable enough to host critical brokers.
+- **buildx kubernetes driver over remote-SSH-to-phone** — no doas-passwordless
+  setup needed for the build path itself; buildkitd runs as a pod, kubelet
+  handles privilege. Native amd64 + arm64 builds at ~30× the speed of qemu.
+- **Gitea on a hostPath PVC pinned to `k3frigate`** — persistence over
+  portability. Pre-migration emptyDir meant the registry vanished the moment
+  the pod restarted.
+- **`fix-gitea-hosts.sh` systemd drop-in on all 6 nodes** — k3s 1.35
+  synthesises `hosts.toml` with `server = "https://..."` even when
+  `registries.yaml` specifies http; containerd silently ignores the mirror
+  block. The drop-in overwrites the file after every k3s restart.
 
 ---
 
@@ -122,11 +197,13 @@ This is a systems exercise.
 
 ## Requirements
 
-- A Linux laptop for the control plane
+- Three Linux hosts for the control plane (any mix of laptops, mini-PCs, or
+  tablets — this build uses a Lenovo IdeaPad, an i5 mini-PC, and a Surface
+  Pro 4)
 - Two or three postmarketOS-capable phones (this build uses OnePlus 6 / 6T)
 - A **powered** USB hub — this is not optional
-- Working familiarity with: Linux networking, k3s, systemd, netplan, udev,
-  iptables / nftables
+- Working familiarity with: Linux networking, k3s, embedded etcd, systemd,
+  netplan, udev, iptables / nftables, containerd registry config
 
 ---
 
@@ -138,11 +215,12 @@ Because understanding failure modes is more valuable than avoiding them.
 
 ---
 
-## Related Write-up
+## Related Write-ups
 
-Full narrative — design decisions, what broke, and what each fix taught:
+Full narratives — design decisions, what broke, and what each fix taught:
 
-→ [*A k3s Cluster Over USB Cables: What postmarketOS and Linux Bridges Hide*][post]
+→ [*A k3s Cluster Over USB Cables: What postmarketOS and Linux Bridges Hide*][post-phones]
+→ [*What broke during a k3s sqlite → embedded etcd HA migration*][post-ha]
 
 ## License
 
