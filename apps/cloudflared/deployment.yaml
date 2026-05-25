@@ -1,0 +1,82 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: frigate
+  labels:
+    app: cloudflared
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: cloudflared
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: In
+                values: ["true"]
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: cloudflared
+            topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: cloudflared
+        image: cloudflare/cloudflared:latest
+        imagePullPolicy: Always
+        args: ["tunnel", "--metrics", "0.0.0.0:2000", "--config", "/etc/cloudflared/config.yaml", "run"]
+        resources:
+          requests: { cpu: "50m",  memory: "64Mi" }
+          limits:   { cpu: "200m", memory: "128Mi" }
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: 2000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 2000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - { mountPath: /etc/cloudflared/config.yaml,     name: config, readOnly: true, subPath: config.yaml }
+        - { mountPath: /etc/cloudflared/credentials.json, name: creds,  readOnly: true, subPath: credentials.json }
+      volumes:
+      - name: config
+        configMap: { name: cloudflared-config }
+      - name: creds
+        secret: { secretName: cloudflared-tunnel-creds }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared
+  namespace: frigate
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: cloudflared
