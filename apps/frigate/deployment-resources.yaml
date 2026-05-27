@@ -1,0 +1,29 @@
+# Patch for the `frigate` container in `apps/v1/Deployment frigate-frigate`.
+# Apply via `kubectl -n frigate edit deploy/frigate` or merge into the full
+# manifest in `ivemcfire/frigate-k8s/deployment.yaml`.
+#
+# Context: the Frigate pod ran with requests.cpu: 1 and no CPU limit. Under
+# storm load on a 4-core node with no swap, ffmpeg + ONNX inference absorbed
+# all cores and starved the kubelet, taking the entire node down. The limits
+# below cap the blast radius to 3 cores; the fourth is reserved for the OS
+# and kubelet via the kubelet-args patch in this directory.
+
+spec:
+  template:
+    spec:
+      containers:
+        - name: frigate
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "3"
+              memory: 6Gi
+              nvidia.com/gpu: 1
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi

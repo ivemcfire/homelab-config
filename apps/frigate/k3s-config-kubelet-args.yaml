@@ -1,0 +1,14 @@
+# Append this to /etc/rancher/k3s/config.yaml on k3frigate (192.168.100.56),
+# then `sudo systemctl restart k3s`. Restart is disruptive only to that node's
+# kubelet for ~30 s; the etcd HA quorum carries the cluster API in the meantime
+# as long as the other two CP nodes are healthy.
+#
+# kube-reserved holds resources back from pod scheduling for kubelet, the
+# container runtime, and k3s itself. system-reserved does the same for the
+# OS (sshd, systemd, etc.). eviction-hard is the floor at which kubelet
+# starts evicting pods to preserve node stability.
+
+kubelet-arg:
+  - "kube-reserved=cpu=500m,memory=512Mi"
+  - "system-reserved=cpu=250m,memory=256Mi"
+  - "eviction-hard=memory.available<200Mi,nodefs.available<10%"
