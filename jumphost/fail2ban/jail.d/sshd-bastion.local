@@ -1,0 +1,8 @@
+# Managed; source-controlled in homelab-config/jumphost/
+[sshd]
+enabled = true
+backend = systemd
+maxretry = 3
+findtime = 10m
+bantime = 1h
+ignoreip = 127.0.0.1/8 ::1 192.168.100.0/24 100.64.0.0/10
