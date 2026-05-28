@@ -1,0 +1,122 @@
+# Alertmanager standalone deployment for homelab alerts.
+#
+# Required secret apply BEFORE this manifest:
+#   kubectl create secret generic alertmanager-email -n monitoring \
+#     --from-literal=smtp-password=<gmail-app-password>
+# Password lives in homelab-docs/credentials.md.age section "Gmail App Password (alertmanager)"
+#
+# Volume Mount path /etc/alertmanager/secrets/smtp-password is what the configmap references.
+---
+apiVersion: v1
+data:
+  alertmanager.yml: "global:\n  resolve_timeout: 5m\n  smtp_smarthost: smtp.gmail.com:587\n\
+    \  smtp_from: ive.mcfire@gmail.com\n  smtp_auth_username: ive.mcfire@gmail.com\n\
+    \  smtp_auth_password_file: /etc/alertmanager/secrets/smtp-password\n  smtp_require_tls:\
+    \ true\n\nroute:\n  receiver: blackhole\n  group_by: [alertname, namespace]\n\
+    \  group_wait: 30s\n  group_interval: 5m\n  repeat_interval: 4h\n\n  routes:\n\
+    \    - match:\n        alertname: Watchdog\n      receiver: blackhole\n    - match:\n\
+    \        severity: info\n      receiver: blackhole\n    - match:\n        severity:\
+    \ critical\n      receiver: email\n      group_wait: 10s\n      repeat_interval:\
+    \ 1h\n    - match:\n        severity: warning\n      receiver: email\n\nreceivers:\n\
+    \  - name: blackhole\n  - name: email\n    email_configs:\n      - to: ive.mcfire@gmail.com\n\
+    \        send_resolved: true\n        headers:\n          Subject: \"[{{ .Status\
+    \ | toUpper }}{{ if eq .Status \\\"firing\\\" }}:{{ .Alerts.Firing | len }}{{\
+    \ end }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})\"\n"
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: alertmanager
+  name: alertmanager
+  namespace: monitoring
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: alertmanager
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+      - args:
+        - --config.file=/etc/alertmanager/alertmanager.yml
+        - --storage.path=/alertmanager
+        - --web.listen-address=:9093
+        - --cluster.listen-address=
+        image: quay.io/prometheus/alertmanager:v0.28.1
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /-/healthy
+            port: 9093
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: alertmanager
+        ports:
+        - containerPort: 9093
+          name: web
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /-/ready
+            port: 9093
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/alertmanager
+          name: config
+        - mountPath: /etc/alertmanager/secrets
+          name: smtp-secret
+          readOnly: true
+        - mountPath: /alertmanager
+          name: storage
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/hostname: k3master
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: alertmanager-config
+        name: config
+      - name: smtp-secret
+        secret:
+          defaultMode: 420
+          secretName: alertmanager-email
+      - emptyDir: {}
+        name: storage
+
