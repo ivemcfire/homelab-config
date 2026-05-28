@@ -1,0 +1,385 @@
+{
+  "id": 1704387381133312,
+  "links": [
+    {
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Overview",
+      "type": "link",
+      "url": "/d/homelab-overview"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^nodename$/"
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "node_uname_info{instance=\"$instance\"}",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "{{nodename}}"
+        }
+      ],
+      "title": "Node",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 6,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "up{instance=\"$instance\"}",
+          "instant": true
+        }
+      ],
+      "title": "Up",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 9,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "time() - node_boot_time_seconds{instance=\"$instance\"}",
+          "instant": true
+        }
+      ],
+      "title": "Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 13,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "node_load1{instance=\"$instance\"}",
+          "instant": true
+        }
+      ],
+      "title": "Load 1m",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 17,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "count(count by(cpu) (node_cpu_seconds_total{instance=\"$instance\"}))",
+          "instant": true
+        }
+      ],
+      "title": "CPUs",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "expr": "100 - (avg by (cpu) (rate(node_cpu_seconds_total{instance=\"$instance\",mode=\"idle\"}[2m])) * 100)",
+          "legendFormat": "cpu {{cpu}}"
+        }
+      ],
+      "title": "CPU % per core",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 20,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "expr": "node_memory_MemTotal_bytes{instance=\"$instance\"} - node_memory_MemAvailable_bytes{instance=\"$instance\"}",
+          "legendFormat": "used"
+        },
+        {
+          "expr": "node_memory_Cached_bytes{instance=\"$instance\"}",
+          "legendFormat": "cached"
+        },
+        {
+          "expr": "node_memory_Buffers_bytes{instance=\"$instance\"}",
+          "legendFormat": "buffers"
+        },
+        {
+          "expr": "node_memory_MemAvailable_bytes{instance=\"$instance\"}",
+          "legendFormat": "available"
+        }
+      ],
+      "title": "Memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 5,
+            "showPoints": "never"
+          },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "expr": "100 - (node_filesystem_avail_bytes{instance=\"$instance\",fstype!~\"tmpfs|overlay|squashfs|nsfs\"} / node_filesystem_size_bytes{instance=\"$instance\",fstype!~\"tmpfs|overlay|squashfs|nsfs\"}) * 100",
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "title": "Disk usage % per mount",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P4DEAB3C3757C9E93"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "targets": [
+        {
+          "expr": "rate(node_network_receive_bytes_total{instance=\"$instance\",device!~\"lo|veth.*|cni.*|flannel.*|docker.*|br-.*|tailscale.*\"}[2m])",
+          "legendFormat": "rx {{device}}"
+        },
+        {
+          "expr": "-rate(node_network_transmit_bytes_total{instance=\"$instance\",device!~\"lo|veth.*|cni.*|flannel.*|docker.*|br-.*|tailscale.*\"}[2m])",
+          "legendFormat": "tx {{device}}"
+        }
+      ],
+      "title": "Network bytes/s per interface",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": [
+    "homelab",
+    "node"
+  ],
+  "templating": {
+    "list": [
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "P4DEAB3C3757C9E93"
+        },
+        "includeAll": false,
+        "label": "Node",
+        "multi": false,
+        "name": "instance",
+        "query": "label_values(node_uname_info, instance)",
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Node Detail",
+  "uid": "node-detail",
+  "version": 1
+}
