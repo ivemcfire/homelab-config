@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    metallb.io/ip-allocated-from-pool: homelab-pool
+    metallb.universe.tf/loadBalancerIPs: 192.168.100.202
+  name: prometheus-lan
+  namespace: monitoring
+spec:
+  ports:
+  - name: web
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app.kubernetes.io/name: prometheus
+  type: LoadBalancer
+

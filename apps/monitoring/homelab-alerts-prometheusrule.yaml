@@ -1,0 +1,200 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app: homelab-alerts
+    release: monitoring
+  name: homelab-alerts
+  namespace: monitoring
+spec:
+  groups:
+  - name: frigate-cameras
+    rules:
+    - alert: CameraDown
+      annotations:
+        description: Camera {{ $labels.camera }} has reported 0 FPS for more than
+          5 minutes. Check RTSP stream and camera hardware.
+        summary: Camera {{ $labels.camera }} is down
+      expr: 'frigate_camera_fps{camera!~"cam04|cam05|cam06"} == 0
+
+        '
+      for: 5m
+      labels:
+        service: frigate
+        severity: critical
+    - alert: CameraHighSkippedFPS
+      annotations:
+        description: Camera {{ $labels.camera }} is skipping {{ $value }} FPS. Detection
+          pipeline may be overloaded.
+        summary: Camera {{ $labels.camera }} skipping frames
+      expr: frigate_skipped_fps > 2
+      for: 10m
+      labels:
+        service: frigate
+        severity: warning
+  - name: frigate-service
+    rules:
+    - alert: FrigatePodNotReady
+      annotations:
+        description: The Frigate deployment in namespace 'frigate' has 0 available
+          replicas for 3+ minutes.
+        summary: Frigate pod is not running
+      expr: "kube_deployment_status_replicas_available{\n  namespace=\"frigate\",\n\
+        \  deployment=\"frigate\"\n} == 0\n"
+      for: 3m
+      labels:
+        service: frigate
+        severity: critical
+    - alert: FrigateHighCPU
+      annotations:
+        description: Frigate is using {{ $value }}% CPU for 15+ minutes. Consider
+          reducing camera count or detection FPS.
+        summary: Frigate CPU usage is high
+      expr: frigate_system_cpu_percent > 80
+      for: 15m
+      labels:
+        service: frigate
+        severity: warning
+    - alert: FrigateHighMemory
+      annotations:
+        description: Frigate is using {{ $value }}% memory. Risk of OOM kill.
+        summary: Frigate memory usage is high
+      expr: frigate_system_memory_percent > 90
+      for: 10m
+      labels:
+        service: frigate
+        severity: warning
+    - alert: FrigateDetectorSlow
+      annotations:
+        description: 'CPU detector inference speed is {{ $value }}ms (target: <100ms).
+          Detection quality may degrade.'
+        summary: Frigate detector inference is slow
+      expr: frigate_detector_inference_speed_ms > 100
+      for: 10m
+      labels:
+        service: frigate
+        severity: warning
+    - alert: FrigateExporterDown
+      annotations:
+        description: Prometheus cannot scrape the Frigate exporter. Frigate metrics
+          are stale.
+        summary: Frigate exporter is unreachable
+      expr: up{job="frigate-exporter"} == 0
+      for: 5m
+      labels:
+        service: frigate
+        severity: warning
+  - name: frigate-storage
+    rules:
+    - alert: FrigateStorageLow
+      annotations:
+        description: 'Only {{ $value | humanizePercentage }} free on recordings volume.
+          Current free: {{ with printf `frigate_storage_free_mb{mount=''recordings''}`
+          | query }}{{ . | first | value | humanize }}MB{{ end }}'
+        summary: Frigate recording storage below 10%
+      expr: "(frigate_storage_free_mb{mount=\"recordings\"}\n / frigate_storage_total_mb{mount=\"\
+        recordings\"})\n< 0.10\n"
+      for: 30m
+      labels:
+        service: frigate
+        severity: warning
+    - alert: FrigateShmFull
+      annotations:
+        description: SHM usage is above 85%. Frigate may crash if it runs out of shared
+          memory.
+        summary: Frigate shared memory nearly full
+      expr: "(frigate_storage_used_mb{mount=\"shm\"}\n / frigate_storage_total_mb{mount=\"\
+        shm\"})\n> 0.85\n"
+      for: 5m
+      labels:
+        service: frigate
+        severity: critical
+  - name: backup-alerts
+    rules:
+    - alert: BackupJobFailed
+      annotations:
+        description: 'Backup job {{ $labels.job_name }} failed. Check job logs: kubectl
+          logs -n frigate job/{{ $labels.job_name }}'
+        summary: Frigate backup job failed
+      expr: "kube_job_status_failed{\n  namespace=\"frigate\",\n  job_name=~\"frigate-backup-.*\"\
+        \n} > 0\n"
+      for: 1m
+      labels:
+        service: backup
+        severity: critical
+    - alert: BackupJobMissing
+      annotations:
+        description: No successful backup in the last 26 hours. The daily backup CronJob
+          may be stuck or misconfigured.
+        summary: Frigate backup has not run successfully
+      expr: "(time() - kube_cronjob_status_last_successful_time{\n  namespace=\"frigate\"\
+        ,\n  cronjob=\"frigate-backup\"\n}) > 93600\n"
+      for: 10m
+      labels:
+        service: backup
+        severity: critical
+  - name: node-health
+    rules:
+    - alert: NodeNotReady
+      annotations:
+        description: Kubernetes node {{ $labels.node }} has been NotReady for 5+ minutes.
+          Check kubelet logs and network connectivity.
+        summary: Node {{ $labels.node }} is not ready
+      expr: "kube_node_status_condition{\n  condition=\"Ready\",\n  status=\"true\"\
+        \n} == 0\n"
+      for: 5m
+      labels:
+        service: k3s
+        severity: critical
+    - alert: NodeHighCPU
+      annotations:
+        description: Node {{ $labels.instance }} CPU usage is {{ $value | printf "%.1f"
+          }}% for 15+ minutes.
+        summary: High CPU on {{ $labels.instance }}
+      expr: '(1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))
+
+        * 100 > 85
+
+        '
+      for: 15m
+      labels:
+        service: k3s
+        severity: warning
+    - alert: NodeHighMemory
+      annotations:
+        description: Node {{ $labels.instance }} has only {{ $value | printf "%.1f"
+          }}% memory available.
+        summary: Low memory on {{ $labels.instance }}
+      expr: '(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+
+        * 100 < 10
+
+        '
+      for: 10m
+      labels:
+        service: k3s
+        severity: critical
+    - alert: NodeDiskPressure
+      annotations:
+        description: Root filesystem on {{ $labels.instance }} has only {{ $value
+          | printf "%.1f" }}% free.
+        summary: Disk space low on {{ $labels.instance }}
+      expr: "(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",mountpoint=\"\
+        /\"}\n / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",mountpoint=\"\
+        /\"})\n* 100 < 10\n"
+      for: 15m
+      labels:
+        service: k3s
+        severity: warning
+    - alert: K3sComponentDown
+      annotations:
+        description: Deployment {{ $labels.deployment }} in kube-system has 0 available
+          replicas.
+        summary: K3s component {{ $labels.deployment }} is down
+      expr: "kube_deployment_status_replicas_available{\n  namespace=\"kube-system\"\
+        \n} == 0\n"
+      for: 5m
+      labels:
+        service: k3s
+        severity: critical
+

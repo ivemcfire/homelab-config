@@ -1,0 +1,18 @@
+# Strategic-merge patch — removes the CPU limit on node-exporter so it can
+# burst freely during scrape (was hitting CFS throttle ~85% of periods at
+# the kube-prometheus-stack default 200m cap). See cluster-improvements.md
+# row about CPUThrottlingHigh false positive (2026-05-28).
+#
+# Apply with:
+#   kubectl patch ds -n monitoring node-exporter --patch-file patch-node-exporter-resources.yaml --type=merge
+spec:
+  template:
+    spec:
+      containers:
+        - name: node-exporter
+          resources:
+            limits:
+              memory: 64Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi

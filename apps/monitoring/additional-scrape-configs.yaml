@@ -1,0 +1,15 @@
+# Plaintext form of the additional-scrape-configs Secret used by
+# the Prometheus CR. Apply via:
+#   kubectl create secret generic additional-scrape-configs \
+#     -n monitoring --from-file=scrape-configs.yaml=- <<<EOF_PAYLOAD
+#     <paste contents below>
+# EOF_PAYLOAD
+#
+# Then ensure Prometheus CR references this Secret:
+#   spec.additionalScrapeConfigs: { key: scrape-configs.yaml, name: additional-scrape-configs }
+
+- job_name: node-exporter-jumphost
+  static_configs:
+    - targets: ["192.168.100.62:9100"]
+      labels:
+        instance: "jumphost"
