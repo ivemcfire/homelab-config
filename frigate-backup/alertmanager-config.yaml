@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: smtp.gmail.com:587
+      smtp_from: user@example.com
+      smtp_auth_username: user@example.com
+      smtp_auth_password_file: /etc/alertmanager/secrets/smtp-password
+      smtp_require_tls: true
+
+    route:
+      receiver: blackhole
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+      routes:
+        - match:
+            alertname: Watchdog
+          receiver: blackhole
+        - match:
+            severity: info
+          receiver: blackhole
+        # ESSENTIAL: critical always emails
+        - match:
+            severity: critical
+          receiver: email
+          group_wait: 10s
+          repeat_interval: 1h
+        # ESSENTIAL: infra-down warnings still email (node/kubelet/API gone), but throttled
+        - match_re:
+            alertname: "KubeJobFailed|KubeNodeNotReady|KubeNodeUnreachable|KubeletDown|KubeAPIDown|KubeletTooManyPods"
+          receiver: email
+          repeat_interval: 12h
+        # NOISE: all other warnings suppressed (rollout-stuck, restarts, TargetDown, etc. — 2026-06-09)
+        - match:
+            severity: warning
+          receiver: blackhole
+
+    receivers:
+      - name: blackhole
+      - name: email
+        email_configs:
+          - to: user@example.com
+            send_resolved: true
+            headers:
+              Subject: "[{{ .Status | toUpper }}{{ if eq .Status \"firing\" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})"

@@ -16,12 +16,14 @@ like servers until you make them into fully functional HA kubernetis cluster.
 
 ## What This Repo Contains
 
-The implementation layer behind two posts:
+The implementation layer behind three posts:
 
 1. *[A k3s Cluster Over USB Cables: What postmarketOS and Linux Bridges Hide][post-phones]*
    — the original phones-as-workers build.
 2. *[What broke during a k3s sqlite → embedded etcd HA migration][post-ha]*
    — adding two control planes and rebuilding the cluster around them.
+3. *[Empty Logs and a Burning Core: Tracing a Silent k3s Failure Three Layers Down][post-goroutine]*
+   — a silently failing backup, a leaked etcd goroutine, and profiling stripped binaries in production.
 
 Plus the workloads that run on top.
 
@@ -31,6 +33,9 @@ Plus the workloads that run on top.
 - **`cluster/containerd-mirrors/`** — post #2 companion: the systemd drop-in
   + `fix-gitea-hosts.sh` that works around the k3s 1.35 hosts.toml synthesis
   bug. Applied on all 6 nodes.
+- **`frigate-backup/`** — post #3 companion: the rebuilt nightly rsync
+  CronJob (dependencies baked into the image, no runtime apk) plus the
+  Alertmanager routing that emails on `KubeJobFailed`.
 - **`apps/`** — current workloads: Gitea (registry + Git, durable PVC),
   HydroFlow (Express + Postgres + MQTT for greenhouse IoT), ChickenFlow
   (Angular SSR + Postgres), Frigate companions (Double Take + CompreFace
@@ -43,6 +48,7 @@ make the system stable.
 
 [post-phones]: https://ivemcfire.github.io/posts/k3s-phone-cluster.html
 [post-ha]: https://ivemcfire.github.io/posts/k3s-ha-migration.html
+[post-goroutine]: https://ivemcfire.github.io/posts/k3s-leaked-goroutine.html
 
 ---
 
