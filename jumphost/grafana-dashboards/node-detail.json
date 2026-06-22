@@ -234,7 +234,7 @@
       },
       "targets": [
         {
-          "expr": "100 - (avg by (cpu) (rate(node_cpu_seconds_total{instance=\"$instance\",mode=\"idle\"}[2m])) * 100)",
+          "expr": "100 - (avg by (cpu) (rate(node_cpu_seconds_total{instance=\"$instance\",mode=\"idle\"}[15m])) * 100)",
           "legendFormat": "cpu {{cpu}}"
         }
       ],
@@ -338,11 +338,11 @@
       },
       "targets": [
         {
-          "expr": "rate(node_network_receive_bytes_total{instance=\"$instance\",device!~\"lo|veth.*|cni.*|flannel.*|docker.*|br-.*|tailscale.*\"}[2m])",
+          "expr": "rate(node_network_receive_bytes_total{instance=\"$instance\",device!~\"lo|veth.*|cni.*|flannel.*|docker.*|br-.*|tailscale.*\"}[15m])",
           "legendFormat": "rx {{device}}"
         },
         {
-          "expr": "-rate(node_network_transmit_bytes_total{instance=\"$instance\",device!~\"lo|veth.*|cni.*|flannel.*|docker.*|br-.*|tailscale.*\"}[2m])",
+          "expr": "-rate(node_network_transmit_bytes_total{instance=\"$instance\",device!~\"lo|veth.*|cni.*|flannel.*|docker.*|br-.*|tailscale.*\"}[15m])",
           "legendFormat": "tx {{device}}"
         }
       ],
