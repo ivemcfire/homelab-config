@@ -24,7 +24,8 @@ spec:
         - name: ghcr-secret
       containers:
         - name: chickenflow
-          image: ghcr.io/ivemcfire/chickenflow:latest
+          # Pinned to the built release SHA — update per release, no :latest.
+          image: ghcr.io/ivemcfire/chickenflow:sha-2daa866
           imagePullPolicy: Always
           ports:
             - containerPort: 4000
@@ -36,13 +37,24 @@ spec:
                 secretKeyRef:
                   name: chickenflow-db-secret
                   key: url
+            # Broker moved hydroflow -> infra namespace (WP5). Explicit here
+            # (rather than in the ConfigMap) so the dependency on the infra
+            # broker is visible directly on the workload.
+            - name: MQTT_URL
+              value: mqtt://mosquitto.infra.svc.cluster.local:1883
           envFrom:
             - configMapRef:
                 name: chickenflow-config
+            - secretRef:
+                name: gemini-api
           livenessProbe:
             httpGet:
               path: /api/health
               port: 4000
+            # /api/health returns 503 once MQTT has been down >10 min (intentional
+            # restart-on-deaf behavior). periodSeconds/failureThreshold give a
+            # further ~2.5 min of sustained 503 before a restart is triggered, so
+            # transient broker blips don't hair-trigger pod restarts.
             initialDelaySeconds: 20
             periodSeconds: 30
             failureThreshold: 5

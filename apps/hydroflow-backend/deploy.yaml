@@ -56,9 +56,9 @@ spec:
             - name: APP_COLOR
               value: green
             - name: MQTT_BROKER
-              value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
+              value: mqtt://mosquitto.infra.svc.cluster.local:1883
             - name: MQTT_URL
-              value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
+              value: mqtt://mosquitto.infra.svc.cluster.local:1883
             - name: DB_HOST
               value: postgres.hydroflow.svc.cluster.local
             - name: DB_PORT

@@ -107,7 +107,7 @@ make the system stable.
 │   ├── gitea/                  — Git + container registry, durable PVC on k3frigate
 │   ├── buildkit/               — buildx kubernetes-driver namespace, RBAC, config
 │   ├── hydroflow-backend/      — Express API for greenhouse IoT
-│   ├── hydroflow-mosquitto/    — MQTT broker, repinned to k3frigate
+│   ├── infra-mosquitto/        — MQTT broker (moved from hydroflow ns, WP5), shared by chickenflow/hydroflow/gpu-inference
 │   ├── chickenflow/            — Angular SSR + Postgres on k3frigate
 │   ├── double-take/            — face-rec orchestration (consumes Frigate events)
 │   ├── face-recognition/       — CompreFace stack + Postgres

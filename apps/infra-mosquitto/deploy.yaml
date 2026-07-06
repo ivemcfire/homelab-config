@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mosquitto
-  namespace: hydroflow
+  namespace: infra
   labels:
     app: mosquitto
-    app.kubernetes.io/part-of: hydroflow
+    app.kubernetes.io/part-of: infra
 spec:
   replicas: 1
   selector:
@@ -17,11 +17,14 @@ spec:
     metadata:
       labels:
         app: mosquitto
-        app.kubernetes.io/part-of: hydroflow
+        app.kubernetes.io/part-of: infra
     spec:
-      # Re-pinned to k3frigate (.56) — phones (one6t) too unreliable.
+      # Pinned to k3frigate (.56) — phones (one6t) too unreliable.
       # cluster-improvements row 48: broker mismatch was eating events.
-      # Storage moved to hostPath on /mnt/frigate/mosquitto (see pvc-stub.yaml).
+      # Storage is hostPath on /mnt/frigate/mosquitto (see pvc-stub.yaml).
+      # WP5: moved out of the hydroflow namespace into infra — this broker is
+      # shared by chickenflow (ESP32 door sensors), hydroflow-backend, and
+      # gpu-inference (mqtt-inference-worker), not hydroflow-specific.
       nodeSelector:
         kubernetes.io/hostname: k3frigate
       terminationGracePeriodSeconds: 30
