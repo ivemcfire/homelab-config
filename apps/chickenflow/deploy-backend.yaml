@@ -25,7 +25,7 @@ spec:
       containers:
         - name: chickenflow
           # Pinned to the built release SHA — update per release, no :latest.
-          image: ghcr.io/ivemcfire/chickenflow:sha-2daa866
+          image: ghcr.io/ivemcfire/chickenflow:sha-0eba3d7
           imagePullPolicy: Always
           ports:
             - containerPort: 4000
