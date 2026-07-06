@@ -25,6 +25,19 @@ spec:
       terminationGracePeriodSeconds: 30
       imagePullSecrets:
         - name: gitea-registry
+      # Image is arm64-ONLY (built for phone nodes). Phones carry the
+      # node-role/phone:NoSchedule taint (2026-06-22), so this workload needs
+      # an explicit toleration; pinned to one6t (one62 browns out under load).
+      # KNOWN FAULT (2026-07-06): the app HARDCODES its broker URL internally —
+      # the MQTT_URL/MQTT_BROKER env are ignored — and phone-node in-pod DNS
+      # is broken, so MQTT from this pod does not work at all. Needs an image
+      # rebuild that reads MQTT_URL from env (use raw IP 192.168.100.207).
+      tolerations:
+        - key: node-role/phone
+          operator: Exists
+          effect: NoSchedule
+      nodeSelector:
+        kubernetes.io/hostname: one6t
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -56,9 +69,9 @@ spec:
             - name: APP_COLOR
               value: green
             - name: MQTT_BROKER
-              value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
+              value: mqtt://mosquitto.infra.svc.cluster.local:1883
             - name: MQTT_URL
-              value: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
+              value: mqtt://mosquitto.infra.svc.cluster.local:1883
             - name: DB_HOST
               value: postgres.hydroflow.svc.cluster.local
             - name: DB_PORT

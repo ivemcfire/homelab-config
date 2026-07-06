@@ -27,8 +27,14 @@ spec:
           image: 192.168.100.206/homelab/mqtt-inference-worker:20260513-0544
           imagePullPolicy: IfNotPresent
           env:
+            # WP5: was mosquitto.hydroflow.svc.cluster.local (DNS name). Phone
+            # nodes (this pod is arch:arm64 == phone-only) have broken in-pod DNS,
+            # so a namespace-qualified DNS name here never actually resolved. Using
+            # the raw MetalLB LB IP instead (immovable, matches the ESP32 firmware's
+            # own hardcoded broker address) makes this correct today AND survives
+            # the hydroflow -> infra namespace move, since it isn't DNS at all.
             - name: MQTT_BROKER
-              value: mosquitto.hydroflow.svc.cluster.local
+              value: "192.168.100.207"
             - name: MQTT_PORT
               value: "1883"
             - name: FRIGATE_URL

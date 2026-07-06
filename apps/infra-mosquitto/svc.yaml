@@ -2,10 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mosquitto
-  namespace: hydroflow
+  namespace: infra
   labels:
     app: mosquitto
-    app.kubernetes.io/part-of: hydroflow
+    app.kubernetes.io/part-of: infra
   annotations:
     metallb.universe.tf/loadBalancerIPs: 192.168.100.207
 spec:

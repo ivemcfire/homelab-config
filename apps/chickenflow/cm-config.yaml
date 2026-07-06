@@ -8,7 +8,10 @@ data:
   COOP_TZ: Europe/Sofia
   FRIGATE_COOP_CAM: cam01
   FRIGATE_URL: http://192.168.100.209:5000
-  MQTT_URL: mqtt://mosquitto.hydroflow.svc.cluster.local:1883
-  OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
-  OLLAMA_URL: http://ollama.chickenflow.svc.cluster.local:11434
   PORT: "4000"
+  # MQTT_URL is set as an explicit env on the backend Deployment (not here) —
+  # see deploy-backend.yaml. Kept out of the ConfigMap so the broker
+  # namespace dependency is visible directly on the workload that needs it.
+  # OLLAMA_URL / OLLAMA_MODEL removed: no code path references Ollama anymore
+  # (backend uses gemini.service.ts exclusively). ollama-service.yaml from the
+  # old chickenFlow/deploy/ was legacy and was not carried over — see WP5 report.

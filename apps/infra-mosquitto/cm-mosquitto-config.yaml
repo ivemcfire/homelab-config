@@ -2,10 +2,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mosquitto-config
-  namespace: hydroflow
+  namespace: infra
   labels:
     app: mosquitto
-    app.kubernetes.io/part-of: hydroflow
+    app.kubernetes.io/part-of: infra
 data:
   mosquitto.conf: |
     # Network
