@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hydroflow-frontend
+  namespace: hydroflow
+  labels:
+    app: hydroflow-frontend
+    app.kubernetes.io/part-of: hydroflow
+  annotations:
+    # 192.168.100.214 — next free IP in the MetalLB pool (.200-.220).
+    # Allocated at WP3 time: .200 traefik ingress, .201 in-cluster Grafana,
+    # .202 prometheus-lan, .206 gitea, .207 mosquitto (infra),
+    # .208 hydroflow-backend, .209 frigate, .211 chickenflow,
+    # .212 compreface-fe, .213 double-take. (.201/.209 are cluster-side
+    # allocations not annotated in this repo; .203-.205/.210 left as slack.)
+    metallb.universe.tf/loadBalancerIPs: 192.168.100.214
+spec:
+  type: LoadBalancer
+  selector:
+    app: hydroflow-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+      protocol: TCP
+  # Cluster mode: MetalLB L2 advertisement is pinned to the control planes,
+  # which may not be where the pod lands — Local would drop external traffic.
+  externalTrafficPolicy: Cluster
