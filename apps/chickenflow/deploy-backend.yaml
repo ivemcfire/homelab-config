@@ -42,6 +42,11 @@ spec:
             # broker is visible directly on the workload.
             - name: MQTT_URL
               value: mqtt://mosquitto.infra.svc.cluster.local:1883
+            # Angular SSR's SSRF host guard rejects serving by raw IP and
+            # silently falls back to client-side rendering; the UI is reached
+            # via the MetalLB IP, so allow it explicitly.
+            - name: NG_ALLOWED_HOSTS
+              value: "192.168.100.211"
           envFrom:
             - configMapRef:
                 name: chickenflow-config
