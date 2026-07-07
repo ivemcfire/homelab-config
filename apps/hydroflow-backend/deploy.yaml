@@ -35,7 +35,7 @@ spec:
           # sha-PLACEHOLDER: the orchestrator pins the real sha-<shortsha> tag
           # after the first CI build on main publishes the image. No :latest —
           # CI pushes sha-only tags.
-          image: ghcr.io/ivemcfire/hydroflow-backend:sha-PLACEHOLDER
+          image: ghcr.io/ivemcfire/hydroflow-backend:sha-37d9113
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
