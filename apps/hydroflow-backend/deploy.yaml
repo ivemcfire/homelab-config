@@ -28,10 +28,11 @@ spec:
       # Image is arm64-ONLY (built for phone nodes). Phones carry the
       # node-role/phone:NoSchedule taint (2026-06-22), so this workload needs
       # an explicit toleration; pinned to one6t (one62 browns out under load).
-      # KNOWN FAULT (2026-07-06): the app HARDCODES its broker URL internally —
-      # the MQTT_URL/MQTT_BROKER env are ignored — and phone-node in-pod DNS
-      # is broken, so MQTT from this pod does not work at all. Needs an image
-      # rebuild that reads MQTT_URL from env (use raw IP 192.168.100.207).
+      # VERIFIED 2026-07-07: the app reads MQTT_URL from env and holds a live
+      # broker connection from one6t — in-pod DNS resolves cluster services
+      # there. (A 2026-07-06 commit claimed a hardcoded-URL fault; that was
+      # misread from a stale pre-rollout pod's logs. Expect occasional MQTT
+      # reconnects, ~2h cadence, on the phone node — the client recovers.)
       tolerations:
         - key: node-role/phone
           operator: Exists
