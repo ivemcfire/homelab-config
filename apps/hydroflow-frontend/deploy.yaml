@@ -35,7 +35,7 @@ spec:
         - name: hydroflow-frontend
           # sha-PLACEHOLDER: the orchestrator pins the real sha-<shortsha> tag
           # after the first CI build on main publishes the image. No :latest.
-          image: ghcr.io/ivemcfire/hydroflow-frontend:sha-PLACEHOLDER
+          image: ghcr.io/ivemcfire/hydroflow-frontend:sha-bc57a52
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 4000
