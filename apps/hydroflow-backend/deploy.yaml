@@ -23,40 +23,19 @@ spec:
         app.kubernetes.io/part-of: hydroflow
     spec:
       terminationGracePeriodSeconds: 30
-      imagePullSecrets:
-        - name: gitea-registry
-      # Image is arm64-ONLY (built for phone nodes). Phones carry the
-      # node-role/phone:NoSchedule taint (2026-06-22), so this workload needs
-      # an explicit toleration; pinned to one6t (one62 browns out under load).
-      # VERIFIED 2026-07-07: the app reads MQTT_URL from env and holds a live
-      # broker connection from one6t — in-pod DNS resolves cluster services
-      # there. (A 2026-07-06 commit claimed a hardcoded-URL fault; that was
-      # misread from a stale pre-rollout pod's logs. Expect occasional MQTT
-      # reconnects, ~2h cadence, on the phone node — the client recovers.)
-      tolerations:
-        - key: node-role/phone
-          operator: Exists
-          effect: NoSchedule
-      nodeSelector:
-        kubernetes.io/hostname: one6t
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
-                    operator: DoesNotExist
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 80
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app: postgres
-                topologyKey: kubernetes.io/hostname
+      # WP3: image is now multi-arch (linux/amd64 + linux/arm64) from GitHub
+      # Actions buildx, so the old arm64-only constraints are gone: no more
+      # one6t nodeSelector, no node-role/phone toleration. Phones stay
+      # excluded by their node-role/phone:NoSchedule taint (2026-06-22);
+      # any non-phone node (incl. control plane) may run this pod.
+      # ghcr.io/ivemcfire images are public (same assumption as chickenflow,
+      # whose ghcr pulls work without creds) — no imagePullSecrets needed.
       containers:
         - name: hydroflow-backend
-          image: 192.168.100.206/ivemcfire/hydroflow-backend:20260513-0554
+          # sha-PLACEHOLDER: the orchestrator pins the real sha-<shortsha> tag
+          # after the first CI build on main publishes the image. No :latest —
+          # CI pushes sha-only tags.
+          image: ghcr.io/ivemcfire/hydroflow-backend:sha-37d9113
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -67,10 +46,10 @@ spec:
               value: production
             - name: PORT
               value: "3000"
-            - name: APP_COLOR
-              value: green
-            - name: MQTT_BROKER
-              value: mqtt://mosquitto.infra.svc.cluster.local:1883
+            # MQTT via cluster DNS — broker lives in the infra namespace (WP5).
+            # Do NOT switch this to the LB IP 192.168.100.207: using the LB IP
+            # from inside the cluster hair-pins and RSTs the connection
+            # (see k8s-ops skill references/networking-troubleshooting.md §2–3).
             - name: MQTT_URL
               value: mqtt://mosquitto.infra.svc.cluster.local:1883
             - name: DB_HOST
@@ -92,24 +71,35 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: POSTGRES_DB
+          envFrom:
+            # GEMINI_API_KEY for AI insights — optional: the backend degrades
+            # gracefully (disables insights) when the key is absent, and the
+            # pod must still start if the secret hasn't been created yet.
+            - secretRef:
+                name: gemini-api
+                optional: true
           lifecycle:
             preStop:
               exec:
                 command: [sleep, "5"]
+          # /healthz returns 503 once MQTT has been down >10 min (intentional
+          # restart-on-deaf behavior, chickenflow lesson). Generous liveness
+          # period/threshold adds ~2.5 min of sustained 503 before restart so
+          # transient broker blips don't hair-trigger pod restarts.
           livenessProbe:
             httpGet:
               path: /healthz
               port: 3000
-            initialDelaySeconds: 15
-            periodSeconds: 20
-            failureThreshold: 3
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /healthz
               port: 3000
             initialDelaySeconds: 10
             periodSeconds: 10
-            failureThreshold: 5
+            failureThreshold: 3
           resources:
             requests:
               cpu: 50m

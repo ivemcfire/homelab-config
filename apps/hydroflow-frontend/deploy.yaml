@@ -1,0 +1,74 @@
+# HydroFlow frontend (Angular SSR) — FIRST deploy, WP3.
+# Image built multi-arch (linux/amd64 + linux/arm64) by the hydroflow repo's
+# GitHub Actions workflow; serves SSR on :4000, runs as non-root (uid 1001,
+# baked into the Dockerfile).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydroflow-frontend
+  namespace: hydroflow
+  labels:
+    app: hydroflow-frontend
+    app.kubernetes.io/part-of: hydroflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydroflow-frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: hydroflow-frontend
+        app.kubernetes.io/part-of: hydroflow
+    spec:
+      terminationGracePeriodSeconds: 30
+      # Multi-arch image — no node pinning, no phone toleration. Phones stay
+      # excluded by their node-role/phone:NoSchedule taint.
+      # ghcr.io/ivemcfire images are public (chickenflow assumption) — no
+      # imagePullSecrets.
+      containers:
+        - name: hydroflow-frontend
+          # sha-PLACEHOLDER: the orchestrator pins the real sha-<shortsha> tag
+          # after the first CI build on main publishes the image. No :latest.
+          image: ghcr.io/ivemcfire/hydroflow-frontend:sha-bc57a52
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "4000"
+          lifecycle:
+            preStop:
+              exec:
+                command: [sleep, "5"]
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 4000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          # Angular SSR is heavier than the API backend at startup/render.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
