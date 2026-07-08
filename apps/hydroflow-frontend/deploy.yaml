@@ -46,6 +46,14 @@ spec:
               value: production
             - name: PORT
               value: "4000"
+            # Angular SSR's SSRF host guard rejects serving by raw IP and
+            # silently falls back to CSR — allow the MetalLB IP explicitly.
+            - name: NG_ALLOWED_HOSTS
+              value: "192.168.100.214"
+            # The SSR server reverse-proxies /api + /ws here so the browser
+            # only ever talks to this pod's origin.
+            - name: BACKEND_URL
+              value: http://hydroflow-backend.hydroflow.svc.cluster.local:3000
           lifecycle:
             preStop:
               exec:
