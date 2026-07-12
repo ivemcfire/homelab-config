@@ -1,0 +1,314 @@
+{
+  "dashboard": {
+    "title": "Frigate NVR",
+    "uid": "frigate-nvr",
+    "tags": ["frigate", "nvr", "cameras", "homelab"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": { "from": "now-6h", "to": "now" },
+    "panels": [
+
+      {
+        "type": "row",
+        "title": "Camera Status",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+        "collapsed": false
+      },
+      {
+        "type": "stat",
+        "title": "Active Cameras",
+        "description": "Number of cameras with FPS > 0",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "count(frigate_camera_fps > 0)", "legendFormat": "" }],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": null },
+                { "color": "yellow", "value": 3 },
+                { "color": "green", "value": 5 }
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": { "graphMode": "none", "textMode": "value" }
+      },
+      {
+        "type": "stat",
+        "title": "Uptime",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "frigate_uptime_seconds", "legendFormat": "" }],
+        "fieldConfig": { "defaults": { "unit": "s" } },
+        "options": { "graphMode": "none", "textMode": "value" }
+      },
+      {
+        "type": "stat",
+        "title": "Detector Speed",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "frigate_detector_inference_speed_ms", "legendFormat": "" }],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 50 },
+                { "color": "red", "value": 100 }
+              ]
+            }
+          }
+        },
+        "options": { "graphMode": "area", "textMode": "value" }
+      },
+      {
+        "type": "stat",
+        "title": "GPU Usage",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "frigate_gpu_usage_percent", "legendFormat": "" }],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 50 },
+                { "color": "red", "value": 80 }
+              ]
+            }
+          }
+        },
+        "options": { "graphMode": "area", "textMode": "value" }
+      },
+      {
+        "type": "stat",
+        "title": "Face Recog Speed",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "frigate_face_recognition_speed_ms", "legendFormat": "" }],
+        "fieldConfig": { "defaults": { "unit": "ms" } },
+        "options": { "graphMode": "area", "textMode": "value" }
+      },
+      {
+        "type": "stat",
+        "title": "Exporter Health",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "frigate_exporter_scrape_success", "legendFormat": "" }],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              { "type": "value", "options": { "1": { "text": "OK", "color": "green" }, "0": { "text": "FAIL", "color": "red" } } }
+            ]
+          }
+        },
+        "options": { "graphMode": "none", "textMode": "value" }
+      },
+
+      {
+        "type": "timeseries",
+        "title": "Camera FPS",
+        "description": "Input FPS per camera — 0 means camera is offline or disabled",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "frigate_camera_fps", "legendFormat": "{{ camera }}" }],
+        "fieldConfig": {
+          "defaults": {
+            "custom": { "fillOpacity": 10, "lineWidth": 2 },
+            "unit": "fps"
+          }
+        },
+        "options": { "legend": { "displayMode": "table", "placement": "right" } }
+      },
+      {
+        "type": "timeseries",
+        "title": "Detection FPS",
+        "description": "Frames being analyzed for objects per camera",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{ "expr": "frigate_detection_fps", "legendFormat": "{{ camera }}" }],
+        "fieldConfig": {
+          "defaults": {
+            "custom": { "fillOpacity": 10, "lineWidth": 2 },
+            "unit": "fps"
+          }
+        },
+        "options": { "legend": { "displayMode": "table", "placement": "right" } }
+      },
+
+      {
+        "type": "row",
+        "title": "System Resources",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+        "collapsed": false
+      },
+      {
+        "type": "timeseries",
+        "title": "Frigate CPU & Memory",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "expr": "frigate_system_cpu_percent", "legendFormat": "CPU %" },
+          { "expr": "frigate_system_memory_percent", "legendFormat": "Memory %" }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0, "max": 100,
+            "custom": { "fillOpacity": 15, "lineWidth": 2 }
+          }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Detector Inference Speed",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "expr": "frigate_detector_inference_speed_ms", "legendFormat": "{{ detector }}" }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "custom": { "fillOpacity": 10, "lineWidth": 2 }
+          }
+        }
+      },
+
+      {
+        "type": "row",
+        "title": "Storage",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+        "collapsed": false
+      },
+      {
+        "type": "bargauge",
+        "title": "Storage Usage",
+        "description": "Used vs total per mount point",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "expr": "(frigate_storage_used_mb / frigate_storage_total_mb) * 100", "legendFormat": "{{ mount }}" }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0, "max": 100,
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "red", "value": 90 }
+              ]
+            }
+          }
+        },
+        "options": { "orientation": "horizontal", "displayMode": "gradient" }
+      },
+      {
+        "type": "timeseries",
+        "title": "Storage Free (MB)",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [
+          { "expr": "frigate_storage_free_mb", "legendFormat": "{{ mount }}" }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "decmbytes",
+            "custom": { "fillOpacity": 10, "lineWidth": 2 }
+          }
+        }
+      },
+
+      {
+        "type": "row",
+        "title": "Backup Status",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+        "collapsed": false
+      },
+      {
+        "type": "stat",
+        "title": "Last Successful Backup",
+        "description": "Time since the last successful frigate-backup CronJob",
+        "gridPos": { "h": 5, "w": 8, "x": 0, "y": 32 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{
+          "expr": "time() - kube_cronjob_status_last_successful_time{cronjob=\"frigate-backup\", namespace=\"frigate\"}",
+          "legendFormat": ""
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 86400 },
+                { "color": "red", "value": 93600 }
+              ]
+            }
+          }
+        },
+        "options": { "graphMode": "none", "textMode": "value" }
+      },
+      {
+        "type": "stat",
+        "title": "Backup Job Failures",
+        "description": "Count of failed backup jobs currently tracked",
+        "gridPos": { "h": 5, "w": 8, "x": 8, "y": 32 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{
+          "expr": "sum(kube_job_status_failed{namespace=\"frigate\", job_name=~\"frigate-backup-.*\"})",
+          "legendFormat": ""
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "red", "value": 1 }
+              ]
+            }
+          }
+        },
+        "options": { "graphMode": "none", "textMode": "value" }
+      },
+      {
+        "type": "stat",
+        "title": "CronJob Suspended",
+        "description": "Whether the backup CronJob is suspended (1=suspended, 0=active)",
+        "gridPos": { "h": 5, "w": 8, "x": 16, "y": 32 },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "targets": [{
+          "expr": "kube_cronjob_spec_suspend{cronjob=\"frigate-backup\", namespace=\"frigate\"}",
+          "legendFormat": ""
+        }],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              { "type": "value", "options": { "0": { "text": "Active", "color": "green" }, "1": { "text": "SUSPENDED", "color": "red" } } }
+            ]
+          }
+        },
+        "options": { "graphMode": "none", "textMode": "value" }
+      }
+    ],
+
+    "templating": {
+      "list": [
+        {
+          "name": "DS_PROMETHEUS",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": { "text": "Prometheus", "value": "prometheus" }
+        }
+      ]
+    },
+    "schemaVersion": 39
+  },
+  "overwrite": true
+}

@@ -37,13 +37,21 @@ spec:
                   # Incremental sync — only transfers new/changed files
                   # --delete removes files on backup that Frigate already purged
                   # --exclude model_cache (re-downloadable, ~100MB)
+                  # exit 23/24 = files vanished mid-sync (Frigate retention
+                  # pruning overlaps the sync window) — expected, not a failure
+                  rc=0
                   rsync -avz --delete --partial --bwlimit=20000 \
                     --exclude='model_cache/' \
                     --rsync-path=/usr/bin/rsync \
                     -e "ssh ${SSH_OPTS}" \
-                    "${SRC}" "${DEST}"
+                    "${SRC}" "${DEST}" || rc=$?
 
-                  echo "[$(date)] Rsync mirror complete."
+                  if [ "$rc" -ne 0 ] && [ "$rc" -ne 23 ] && [ "$rc" -ne 24 ]; then
+                    echo "[$(date)] Rsync failed with exit code $rc"
+                    exit "$rc"
+                  fi
+
+                  echo "[$(date)] Rsync mirror complete (rsync exit $rc)."
               volumeMounts:
                 - name: frigate-data
                   mountPath: /data

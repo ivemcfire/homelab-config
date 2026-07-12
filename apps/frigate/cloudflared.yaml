@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: frigate
+data:
+  config.yaml: |
+    tunnel: 471b5cdf-82cd-430c-a275-c3068c50eaa4
+    credentials-file: /etc/cloudflared/credentials.json
+    no-autoupdate: true
+    ingress:
+      - hostname: cams.ayurforlife.eu
+        service: http://frigate:5000
+      - hostname: monitor.ayurforlife.eu
+        service: http://monitoring-grafana.monitoring.svc.cluster.local:80
+      - hostname: uptime.ayurforlife.eu
+        service: http://192.168.100.62:3001
+      - service: http_status:404
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: frigate
+  labels:
+    app: cloudflared
+spec:
+  # 2 = number of control-plane nodes; hard anti-affinity means a 3rd
+  # replica can never schedule (phones are excluded by node affinity)
+  replicas: 2
+  # surge pods can never schedule (anti-affinity + all eligible nodes
+  # occupied), so roll by killing one old pod first
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: In
+                    values: ["true"]
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: cloudflared
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config.yaml
+            - run
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/credentials.json
+              subPath: credentials.json
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: cloudflared-config
+        - name: creds
+          secret:
+            secretName: cloudflared-tunnel-creds

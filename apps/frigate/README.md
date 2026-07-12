@@ -2,7 +2,7 @@
 
 Companion to the post *[The Tunnel Was Up. The Cameras Were 502.](https://ivemcfire.github.io/posts/cloudflared-ha-and-oob.html)* — specifically the section *What "No CPU Limit" Means When the Cameras All Move at Once*.
 
-The full Frigate Deployment and ConfigMap live in the `ivemcfire/frigate-k8s` repo. This directory only contains the pieces that changed during the 2026-05-27 storm-hardening pass.
+Full deployment manifests live in this directory (folded in from the retired `frigate-k8s` repo, 2026-07-12). `deployment-resources.yaml` is the storm-hardening patch snippet kept for the blog post below; the values are baked into `deployment.yaml`. NOTE: the ConfigMap is bootstrap-only — the authoritative Frigate config is the hostPath `/mnt/frigate/config/config.yml` on k3frigate (.56) and may drift ahead of git.
 
 ## What broke
 
